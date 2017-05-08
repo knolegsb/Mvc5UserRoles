@@ -9,6 +9,8 @@ using Microsoft.AspNet.Identity;
 using Microsoft.AspNet.Identity.Owin;
 using Microsoft.Owin.Security;
 using Mvc5UserRoles.Models;
+using System.Data.SqlClient;
+using System.Configuration;
 
 namespace Mvc5UserRoles.Controllers
 {
@@ -151,6 +153,8 @@ namespace Mvc5UserRoles.Controllers
         {
             if (ModelState.IsValid)
             {
+                var custEmail = FindEmail(model.RegisterEmail);
+
                 var user = new ApplicationUser { UserName = model.Email, Email = model.Email };
                 var result = await UserManager.CreateAsync(user, model.Password);
                 if (result.Succeeded)
@@ -481,5 +485,61 @@ namespace Mvc5UserRoles.Controllers
             }
         }
         #endregion
+
+        #region Variables
+
+        public static string command = null;
+        public static string parameterName = null;
+        public static string methodName = null;
+        public static string connection = GetConnectionString("DefaultConnection");
+
+        #endregion
+
+        public static string GetConnectionString(string connection)
+        {
+            return ConfigurationManager.ConnectionStrings[connection].ConnectionString;
+        }
+
+        public static string FindEmail(string email)
+        {
+            command = "SELECT Email AS Email FROM AspNetUsers WHERE Email = @Email";
+            parameterName = "@Email";
+            methodName = "FindEmail";
+            return ReturnString(email);
+        }
+
+        public static string ReturnString(string str)
+        {
+            string strOut = null;
+            using (SqlConnection myConnection = new SqlConnection(connection))
+            using (SqlCommand cmd = new SqlCommand(command, myConnection))
+            {
+                cmd.Parameters.AddWithValue(parameterName, str);
+                myConnection.Open();
+                using (SqlDataReader reader = cmd.ExecuteReader())
+                {
+                    if (reader.HasRows)
+                    {
+                        if (reader.Read())
+                        {
+                            if (methodName == "FindEmail")
+                            {
+                                strOut = reader["Email"].ToString();
+                            }
+                            else if (methodName == "FindUserName" || methodName == "FindUserNameById")
+                            {
+                                strOut = reader["UserName"].ToString();
+                            }
+                            else if (methodName == "FindUserId")
+                            {
+                                strOut = reader["UserId"].ToString();
+                            }
+                        }
+                        myConnection.Close();
+                    }
+                    return strOut;
+                }
+            }
+        }
     }
 }
